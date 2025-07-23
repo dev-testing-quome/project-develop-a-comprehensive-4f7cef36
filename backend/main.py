@@ -1,70 +1,67 @@
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import os
-from sqlalchemy.orm import Session
-from .database import SessionLocal, engine
-from . import models
-from .routers import clients, properties, showings # Add other routers as needed
-from .exceptions import ApiException
+from fastapi.openapi.utils import get_openapi
 
-models.Base.metadata.create_all(bind=engine)
+from database import engine, Base
+from routers import users, properties, showings # Add other routers as needed
 
-app = FastAPI()
+Base.metadata.create_all(bind=engine)
 
-# CORS
+app = FastAPI(title="Real Estate Platform", version="1.0.0", openapi_url="/openapi.json", docs_url="/docs")
+
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],  # Replace with your allowed origins in production
+    allow_origins=['*'], # Replace with specific origins in production
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
 )
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# Routers
-app.include_router(clients.router)
+# Router Registration
+app.include_router(users.router)
 app.include_router(properties.router)
-app.include_router(showings.router) # Add other routers here
+app.include_router(showings.router) # Add other routers as needed
 
 # Health Check
 @app.get('/health')
 def health_check():
-    return {"status": "ok"}
+    return {"status": "OK"}
 
-# Static Files
+# Custom Exception Handler
+@app.exception_handler(Exception)
+def unicorn_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500, content={'message': f'Internal Server Error: {exc}'})
+
+# Static File Serving
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-    @app.get("/{{"file_path:path}}")
-    async def serve_frontend(file_path: str, request: Request):
-        if file_path.startswith("api"):
-            return None  # Let API routes handle it
+    @app.get("/{file_path:path}")
+    async def serve_frontend(file_path: str):
+        if file_path.startswith("api/") or file_path.startswith("static/") or file_path == "openapi.json" or file_path == "docs":
+            return None  # Let API routes and static files handle it
         static_file = os.path.join("static", file_path)
         if os.path.isfile(static_file):
             return FileResponse(static_file)
-        return FileResponse("static/index.html")
+        return FileResponse("static/index.html")  # SPA routing
 
-# Exception Handling
-@app.exception_handler(ApiException)
-def api_exception_handler(request: Request, exc: ApiException):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+# OpenAPI Customization (Optional)
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Real Estate Platform",
+        version="1.0.0",
+        routes=app.routes,
+    )
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+app.openapi = custom_openapi
 
-@app.exception_handler(Exception)
-def exception_handler(request: Request, exc: Exception):
-    import logging
-    logging.exception(exc)
-    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail": "Internal Server Error"})
-
-# Run the application
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
