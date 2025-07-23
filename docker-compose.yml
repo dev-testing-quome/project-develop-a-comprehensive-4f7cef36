@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build: 
+      context: .
+      target: production
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/project-develop-a-comprehensive_db
+      - REDIS_URL=redis://redis:6379
+      - ENVIRONMENT=production
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Test runner service
+  test:
+    build:
+      context: .
+      target: test
+    environment:
+      - DATABASE_URL=postgresql://user:password@test_db:5432/project-develop-a-comprehensive_test_db
+      - ENVIRONMENT=test
+    depends_on:
+      - test_db
+    command: >
+      sh -c "
+        python -m pytest tests/ --cov=src --cov-fail-under=80 &&
+        npm test -- --coverage --watchAll=false
+      "
+    volumes:
+      - ./coverage:/app/coverage
+
+  # Production database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=project-develop-a-comprehensive_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # Test database
+  test_db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=project-develop-a-comprehensive_test_db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data  # Use tmpfs for faster test database
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
