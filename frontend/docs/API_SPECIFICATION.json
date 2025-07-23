@@ -1,0 +1,246 @@
+```json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Project Develop a Comprehensive Real Estate Platform API",
+    "version": "v1",
+    "description": "A comprehensive real estate platform API with MLS integration, CRM, scheduling, document management, market analysis, commission tracking, marketing automation, client portal, and transaction management."
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com/v1",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Property": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer", "format": "int64"},
+          "address": {"type": "string"},
+          "price": {"type": "number", "format": "float"},
+          // ... other property fields
+        }
+      },
+      "Client": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer", "format": "int64"},
+          "name": {"type": "string"},
+          "email": {"type": "string", "format": "email"},
+          // ... other client fields
+        }
+      },
+      // ... other schemas for Leads, Appointments, Documents, etc.
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {"type": "integer"},
+          "message": {"type": "string"}
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "total": {"type": "integer"},
+          "pageSize": {"type": "integer"},
+          "currentPage": {"type": "integer"},
+          "totalPages": {"type": "integer"}
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/properties": {
+      "get": {
+        "summary": "Get properties",
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer"}, "description": "Page number"},
+          {"name": "pageSize", "in": "query", "schema": {"type": "integer"}, "description": "Page size"}
+        ],
+        "responses": {
+          "200": {
+            "description": "List of properties",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {"type": "array", "items": {"$ref": "#/components/schemas/Property"}},
+                    "pagination": {"$ref": "#/components/schemas/Pagination"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create property",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/Property"}
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Property created",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Property"}
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/properties/{id}": {
+      "get": {
+        "summary": "Get property by ID",
+        "parameters": [
+          {"name": "id", "in": "path", "schema": {"type": "integer", "format": "int64"}, "required": true}
+        ],
+        "responses": {
+          "200": {
+            "description": "Property found",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Property"}
+              }
+            }
+          },
+          "404": {
+            "description": "Property not found",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"}
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update property",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "id", "in": "path", "schema": {"type": "integer", "format": "int64"}, "required": true}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/Property"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Property updated",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Property"}
+              }
+            }
+          },
+          "404": {
+            "description": "Property not found",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"}
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete property",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "id", "in": "path", "schema": {"type": "integer", "format": "int64"}, "required": true}
+        ],
+        "responses": {
+          "204": {
+            "description": "Property deleted"
+          },
+          "404": {
+            "description": "Property not found",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"}
+              }
+            }
+          }
+        }
+      }
+    },
+    // ... other paths for clients, leads, appointments, etc.
+    "/auth/login": {
+      "post": {
+        "summary": "Login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {"type": "string"},
+                  "password": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {"type": "string"}
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  }
+}
+```
